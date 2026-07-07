@@ -13,7 +13,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write   # Required for OIDC
+  id-token: write
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -40,15 +40,15 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build -t ${{ vars.ECR_REPOSITORY }}:latest .
+          docker build -t ${{ vars.ECR_REPOSITORY }}:${{ github.sha }} .
 
       - name: Tag Docker Image
         run: |
           docker tag \
-          ${{ vars.ECR_REPOSITORY }}:latest \
-          ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:latest
+            ${{ vars.ECR_REPOSITORY }}:${{ github.sha }} \
+            ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
 
       - name: Push Docker Image
         run: |
           docker push \
-          ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:latest
+            ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
