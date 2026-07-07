@@ -1,3 +1,4 @@
+
 name: CI
 
 on:
@@ -20,21 +21,13 @@ concurrency:
 
 jobs:
   build:
-    name: Build React app
+    name: Build Docker Image
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build
-        run: npm run build
+      - name: Build Docker image
+        run: |
+          docker build -t shopfront-react-app:latest .
