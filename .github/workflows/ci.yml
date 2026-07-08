@@ -60,4 +60,9 @@ jobs:
             COSIGN_EXPERIMENTAL: "true"
         run: |
             cosign sign --yes \
-            ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}            
+            ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}    
+            
+      - name: Verify Docker Image Signature
+        run: |
+          cosign verify \
+            ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}      
