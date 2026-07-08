@@ -14,6 +14,8 @@ on:
 permissions:
   contents: read
   id-token: write
+  actions: read
+  attestations: write
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -23,6 +25,10 @@ jobs:
   build:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
+
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      digest: ${{ steps.build-image.outputs.digest }}
 
     steps:
       - name: Checkout repository
@@ -38,44 +44,36 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Set Image Name
+        id: image
+        run: |
+          echo "image=${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Docker Image
+        id: build-image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
+
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3
-      - name: Build Docker Image
-        run: |
-          docker build -t ${{ vars.ECR_REPOSITORY }}:${{ github.sha }} .
-
-      - name: Tag Docker Image
-        run: |
-          docker tag \
-            ${{ vars.ECR_REPOSITORY }}:${{ github.sha }} \
-            ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
-
-      - name: Push Docker Image
-        run: |
-          docker push \
-            ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
-
-      - name: Get Image Digest
-        id: image-digest
-        run: |
-          DIGEST=$(aws ecr describe-images \
-            --repository-name ${{ vars.ECR_REPOSITORY }} \
-            --image-ids imageTag=${{ github.sha }} \
-            --query 'imageDetails[0].imageDigest' \
-            --output text)
-
-          echo "digest=$DIGEST" >> $GITHUB_OUTPUT      
 
       - name: Sign Docker Image
         env:
-            COSIGN_EXPERIMENTAL: "true"
+          COSIGN_EXPERIMENTAL: "true"
         run: |
-            cosign sign --yes \
-            ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}@${{ steps.image-digest.outputs.digest }}   
-            
+          cosign sign --yes \
+            ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}@${{ steps.build-image.outputs.digest }}
+
       - name: Verify Docker Image Signature
         run: |
           cosign verify \
-          --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/ci.yml@refs/heads/main" \
-          --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-          ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}@${{ steps.image-digest.outputs.digest }}     
+            --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/ci.yml@refs/heads/main" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}@${{ steps.build-image.outputs.digest }}
