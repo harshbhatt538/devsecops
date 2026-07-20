@@ -114,7 +114,7 @@ jobs:
           curl -fsSL -o kustomize.tar.gz \
             https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64.tar.gz
 
-          tar -xzf kustomize.tar.gz
+          tar -xzf kustomize.tar.gz 
           chmod +x kustomize
           sudo mv kustomize /usr/local/bin/kustomize
 
